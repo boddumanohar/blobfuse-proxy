@@ -47,11 +47,13 @@ func handleMount(c *gin.Context) {
 
 	cmd.Env = append(os.Environ(), "AZURE_STORAGE_ACCOUNT="+req.AccountName)
 	cmd.Env = append(cmd.Env, "AZURE_STORAGE_ACCESS_KEY="+req.AccountKey)
-	err := cmd.Run()
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	go func() {
+		err := cmd.Run()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
-	}
+		}
+	}()
 	c.JSON(http.StatusOK, gin.H{"success": "true"})
 }
 
