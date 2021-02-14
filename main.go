@@ -1,65 +1,42 @@
 package main
 
-// idea:
-// a GRPC service that interacts with the csi Node Service and does all the mounting job.
-// as a prototype lets create a http server that does the mounting
-
-// POST /mount
-// temp
-// targetPath
-// accountName
-// containerName
-// accountKey
-// validates by actually checking if the mount point exists
-// returns {"success": true}
-
 import (
+	"flag"
 	"fmt"
-	"net/http"
-	"os"
-	"os/exec"
-	"strings"
+	"log"
+	"net"
 
-	"github.com/gin-gonic/gin"
+	mount_azure_blob "github.com/boddumanohar/blobfuse-proxy/pb"
+	"github.com/boddumanohar/blobfuse-proxy/server"
+	"google.golang.org/grpc"
 )
 
-type DataReq struct {
-	TargetPath    string `json:"targetPath"`
-	AccountName   string `json:"accountName"`
-	ContainerName string `json:"containerName"`
-	AccountKey    string `json:"acccountKey"`
-	TmpPath       string `json:"tmpPath"`
-}
+func runGRPCServer(
+	mountServer mount_azure_blob.MountServiceServer,
+	enableTLS bool,
+	listener net.Listener,
+) error {
+	serverOptions := []grpc.ServerOption{}
+	grpcServer := grpc.NewServer(serverOptions...)
 
-func handleGet(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"data": "use POST /mount to mount an endpoint"})
-}
+	mount_azure_blob.RegisterMountServiceServer(grpcServer, mountServer)
 
-func handleMount(c *gin.Context) {
-	var req DataReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	args := fmt.Sprintf("%s --tmp-path=%s --container-name=%s", req.TargetPath, req.TmpPath, req.ContainerName)
-	cmd := exec.Command("blobfuse", strings.Split(args, " ")...)
-	// todo: take mount args being passed from storage class
-
-	cmd.Env = append(os.Environ(), "AZURE_STORAGE_ACCOUNT="+req.AccountName)
-	cmd.Env = append(cmd.Env, "AZURE_STORAGE_ACCESS_KEY="+req.AccountKey)
-	go func() {
-		err := cmd.Run()
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-		}
-	}()
-	c.JSON(http.StatusOK, gin.H{"success": "true"})
+	log.Printf("Start GRPC server at %s, TLS = %t", listener.Addr().String(), enableTLS)
+	return grpcServer.Serve(listener)
 }
 
 func main() {
-	r := gin.Default()
-	r.GET("/", handleGet)
-	r.POST("/mount", handleMount)
-	r.Run()
+	port := flag.Int("port", 0, "the server port")
+	flag.Parse()
+	address := fmt.Sprintf("0.0.0.0:%d", *port)
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		log.Fatal("cannot start server: ", err)
+	}
+
+	mountServer := server.NewMountServiceServer()
+	err = runGRPCServer(mountServer, false, listener)
+	if err != nil {
+		log.Fatal("cannot start server: ", err)
+	}
 }
