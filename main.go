@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"strings"
 
 	mount_azure_blob "github.com/boddumanohar/blobfuse-proxy/pb"
 	"github.com/boddumanohar/blobfuse-proxy/server"
@@ -25,18 +27,40 @@ func runGRPCServer(
 	return grpcServer.Serve(listener)
 }
 
+func parseEndpoint(ep string) (string, string, error) {
+	if strings.HasPrefix(strings.ToLower(ep), "unix://") || strings.HasPrefix(strings.ToLower(ep), "tcp://") {
+		s := strings.SplitN(ep, "://", 2)
+		if s[1] != "" {
+			return s[0], s[1], nil
+		}
+	}
+	return "", "", fmt.Errorf("Invalid endpoint: %v", ep)
+}
+
 func main() {
-	port := flag.Int("port", 0, "the server port")
+	endpoint := flag.String("endpoint", "unix://tmp/blobfuseproxy.sock", "CSI endpoint")
 	flag.Parse()
-	address := fmt.Sprintf("0.0.0.0:%d", *port)
-	listener, err := net.Listen("tcp", address)
+	proto, addr, err := parseEndpoint(*endpoint)
 	if err != nil {
-		log.Fatal("cannot start server: ", err)
+		log.Fatal(err.Error())
+	}
+
+	if proto == "unix" {
+		addr = "/" + addr
+		if err := os.Remove(addr); err != nil && !os.IsNotExist(err) {
+			log.Fatalf("Failed to remove %s, error: %s", addr, err.Error())
+		}
+	}
+
+	listener, err := net.Listen(proto, addr)
+	if err != nil {
+		log.Fatal("cannot start server:", err)
 	}
 
 	mountServer := server.NewMountServiceServer()
-	err = runGRPCServer(mountServer, false, listener)
-	if err != nil {
-		log.Fatal("cannot start server: ", err)
+
+	log.Printf("Listening for connections on address: %#v\n", listener.Addr())
+	if err = runGRPCServer(mountServer, false, listener); err != nil {
+		log.Fatalf("Listening for connections on address: %#v, error: %v", listener.Addr(), err)
 	}
 }

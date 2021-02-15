@@ -24,6 +24,7 @@ func (server *MountServer) MountAzureBlob(ctx context.Context,
 	req *mount_azure_blob.MountAzureBlobRequest,
 ) (resp *mount_azure_blob.MountAzureBlobResponse, err error) {
 
+	log.Printf("received request: Mounting the container %s to the path %s \n", req.GetContainerName(), req.GetTargetPath())
 	resp = &mount_azure_blob.MountAzureBlobResponse{Err: ""}
 	args := fmt.Sprintf("%s --tmp-path=%s --container-name=%s", req.GetTargetPath(), req.GetTmpPath(), req.GetContainerName())
 	cmd := exec.Command("blobfuse", strings.Split(args, " ")...)
