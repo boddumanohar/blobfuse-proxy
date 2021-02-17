@@ -38,7 +38,7 @@ func parseEndpoint(ep string) (string, string, error) {
 }
 
 func main() {
-	endpoint := flag.String("endpoint", "unix://tmp/blobfuseproxy.sock", "CSI endpoint")
+	endpoint := flag.String("endpoint", "unix://var/lib/kubelet/plugins/blobfuseproxy.sock", "CSI endpoint")
 	flag.Parse()
 	proto, addr, err := parseEndpoint(*endpoint)
 	if err != nil {
