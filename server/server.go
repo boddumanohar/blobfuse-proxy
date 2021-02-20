@@ -12,12 +12,15 @@ import (
 )
 
 type MountServer struct {
+	mount_azure_blob.UnimplementedMountServiceServer
 }
 
 // NewMountServer returns a new Mountserver
 func NewMountServiceServer() *MountServer {
 	return &MountServer{}
 }
+
+func (server *MountServer) mustEmbedUnimplementedMountServiceServer() {}
 
 // MountAzureBlob mounts an azure blob container to given location
 func (server *MountServer) MountAzureBlob(ctx context.Context,
