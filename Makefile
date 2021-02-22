@@ -4,8 +4,8 @@ gen:
 clean:
 	rm pb/*.go
 
-build:
-	go build
+server:
+	go build -mod vendor -o _output/blobfuse-proxy ./server
 
 tidy:
 	go mod tidy

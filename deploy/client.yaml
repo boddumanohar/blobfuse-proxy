@@ -1,0 +1,26 @@
+---
+kind: Pod
+apiVersion: v1
+metadata:
+  name: blobfuse-proxy-client
+  namespace: kube-system
+spec:
+  containers:
+  - name: blobfuse-proxy-client
+    image: localhost:5000/proxy-client@sha256:1e55e837e465e687907247e76ebe6c41f435e41a6f7bd0b1507413be756ad421
+    args:
+      - "--address=$(BLOBFUSE_PROXY_ENDPOINT)"
+    env:
+      - name: BLOBFUSE_PROXY_ENDPOINT
+        value: unix:///tmp/blobfuse-proxy.sock
+    volumeMounts:
+      - mountPath: /tmp
+        name: socket-dir
+    securityContext:
+      privileged: true
+  volumes:
+    - hostPath:
+        path: /var/data/socket
+        type: DirectoryOrCreate
+      name: socket-dir
+---

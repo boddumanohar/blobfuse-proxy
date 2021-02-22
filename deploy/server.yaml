@@ -1,0 +1,49 @@
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: blobfuse-proxy-server
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      app: blobfuse-proxy-server
+  template:
+    metadata:
+      labels:
+        app: blobfuse-proxy-server
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-node-critical
+      tolerations:
+        - operator: "Exists"
+      containers:
+        - name: proxy
+          image: localhost:5000/proxy-server:latest
+          imagePullPolicy: Always
+          args:
+            - "--endpoint=$(BLOBFUSE_PROXY_ENDPOINT)"
+          env:
+            - name: BLOBFUSE_PROXY_ENDPOINT
+              value: unix://tmp/blobfuse-proxy.sock
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /tmp
+              name: socket-dir
+          resources:
+            limits:
+              cpu: 2
+              memory: 2100Mi
+            requests:
+              cpu: 10m
+              memory: 20Mi
+      volumes:
+        - hostPath:
+            path: /var/data/socket
+            type: DirectoryOrCreate
+          name: socket-dir
+---
